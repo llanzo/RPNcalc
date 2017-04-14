@@ -16,7 +16,10 @@ var operandCount int
 var hasRunningTotal = false
 var display string
 
+//User input is parsed for a valid operation
+//valid operations are evaluated and
 func parseInput(input string) string {
+	//Determine if the calculator can execute operation evalutions in it's current state
 	var isValidOperation = func() (bool, string) {
 		switch {
 		case operandCount > len(operands):
@@ -29,6 +32,7 @@ func parseInput(input string) string {
 			return false, "Unrecognized state"
 		}
 	}
+	//Determine if the calculator is in a state to accept operands as input
 	var isAcceptingOperands = func(stringValue string) (bool, string) {
 		matched := validNumber.MatchString(stringValue)
 		switch {
@@ -40,12 +44,15 @@ func parseInput(input string) string {
 			return true, ""
 		}
 	}
+	//When using the running total as one of the operands
+	//it's necessary to order it as the first operand
 	var ensureMultipleOperands = func() {
 		if operandCount == 1 && hasRunningTotal {
 			operands[1] = operands[0]
 			operands[0] = runningTotal
 		}
 	}
+	//Update calculator state after performing an operation evaluation
 	var updateCaculatorRegisters = func(calculatedValue float64) string {
 		runningTotal = calculatedValue
 		hasRunningTotal = true
@@ -54,6 +61,8 @@ func parseInput(input string) string {
 		operands = [2]float64{}
 		return strconv.FormatFloat(displayValue, 'f', 1, 32)
 	}
+	//When user input does not create a valid operation
+	//attempt to insert input as an operand
 	var insertAnotherOperand = func(tokenValue string) string {
 		enabled, unacceptableExplaination := isAcceptingOperands(tokenValue)
 		if !enabled {
@@ -84,6 +93,8 @@ func parseInput(input string) string {
 		return updateCaculatorRegisters(operands[0] / operands[1])
 	}
 
+	//Break up user input in tokens
+	//iterate over the tokens, evaluating operations and saving operands
 	var tokens = strings.Split(input, " ")
 	for _, token := range tokens {
 		var operable, inoperableExplaination = isValidOperation()
@@ -110,14 +121,18 @@ func parseInput(input string) string {
 	return display
 }
 
+//flow control channel, used to prevent the main routine from displaying prompts asynchronously
 var holderChan = make(chan string)
 
+//broadcasts the result of the input parsing on the flow control channel
 func localParser(ch chan string) {
 	for result := range ch {
 		holderChan <- parseInput(result)
 	}
 }
 
+//main thread, creates main channel and subscribes the parser routine to it,
+//reads input, pushes user input into the main channel as appropriate
 func main() {
 	ch := make(chan string)
 	go localParser(ch)
